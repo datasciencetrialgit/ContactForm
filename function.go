@@ -96,8 +96,13 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		auth := smtp.PlainAuth("", smtpUser, smtpPass, p.Host)
 		err := sendMail(p.Host+":"+p.Port, auth, smtpUser, []string{os.Getenv("SMTP_TO")}, []byte(msg))
 		if err == nil {
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, "Message sent successfully!")
+			// Show message and redirect after 1 second using HTML/JS
+			redirectURL := r.Referer()
+			if redirectURL == "" {
+				redirectURL = "/" // fallback if no referer
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprintf(w, `<html><body><p>Message sent successfully!</p><script>setTimeout(function(){window.location.href='%s';}, 1000);</script></body></html>`, redirectURL)
 			return
 		}
 		lastErr = err
