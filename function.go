@@ -40,9 +40,6 @@ func loadSMTPConfig(_ string) (*SMTPConfig, error) {
 	return &smtpConfig, nil
 }
 
-// Add a config for the redirect URL
-var redirectURLConfig = os.Getenv("REDIRECT_URL")
-
 // ContactForm handles POST requests from a contact form and sends email via configured SMTP providers.
 func ContactForm(w http.ResponseWriter, r *http.Request) {
 	wd, _ := os.Getwd()
@@ -54,13 +51,6 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 
 	if r.FormValue("website") != "" {
 		http.Error(w, "Spam detected", http.StatusBadRequest)
-		return
-	}
-
-	// Support custom redirect URL from form field
-	redirect := r.FormValue("_redirect")
-	if redirect != "" {
-		http.Redirect(w, r, redirect, http.StatusSeeOther)
 		return
 	}
 
@@ -106,34 +96,15 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		auth := smtp.PlainAuth("", smtpUser, smtpPass, p.Host)
 		err := sendMail(p.Host+":"+p.Port, auth, smtpUser, []string{os.Getenv("SMTP_TO")}, []byte(msg))
 		if err == nil {
-			// Redirect with success message as URL parameter
-			redirectURL := redirectURLConfig
-			if redirectURL == "" {
-				redirectURL = "/contact" // Always fallback to /Contact if not set
-			}
-			sep := "?"
-			if strings.Contains(redirectURL, "?") {
-				sep = "&"
-			}
-			redirectURL = redirectURL + sep + "status=success"
-			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, "Message sent successfully!")
 			return
 		}
 		lastErr = err
 		log.Printf("SendMail error with %s: %v", provider, err)
 	}
 	if lastErr != nil {
-		// Redirect with failure message as URL parameter
-		redirectURL := redirectURLConfig
-		if redirectURL == "" {
-			redirectURL = "/Contact" // Always fallback to /Contact if not set
-		}
-		sep := "?"
-		if strings.Contains(redirectURL, "?") {
-			sep = "&"
-		}
-		redirectURL = redirectURL + sep + "status=error"
-		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		http.Error(w, "Failed to send email with all providers", http.StatusInternalServerError)
 	} else {
 		http.Error(w, "No valid SMTP provider configured", http.StatusInternalServerError)
 	}

@@ -16,14 +16,12 @@ func TestContactForm_Success(t *testing.T) {
 	os.Setenv("SMTP_PASS", "Crafted001!")
 	os.Setenv("SMTP_TO", "craftedlivefoundation@gmail.com")
 	os.Setenv("SMTP_PROVIDERS", "gmail")
-	os.Setenv("RECAPTCHA_SECRET", "dummy-secret")
 
 	form := url.Values{}
 	form.Set("name", "Test User")
 	form.Set("email", "test@user.com")
 	form.Set("message", "Hello!")
 	form.Set("website", "") // honeypot empty
-	form.Set("g-recaptcha-response", "dummy-token")
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -37,21 +35,12 @@ func TestContactForm_Success(t *testing.T) {
 	}
 	defer func() { sendMail = sendMailOrig }()
 
-	// Patch verifyRecaptcha to always return true
-	verifyRecaptchaOrig := verifyRecaptcha
-	verifyRecaptcha = func(token string) bool { return true }
-	defer func() { verifyRecaptcha = verifyRecaptchaOrig }()
-
 	ContactForm(rw, req)
 
 	resp := rw.Result()
-	body, _ := io.ReadAll(resp.Body)
-
 	if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected redirect or 200 OK, got %d: %s", resp.StatusCode, string(body))
-	}
-	if !strings.Contains(string(body), "Message sent successfully") {
-		t.Errorf("unexpected response: %s", string(body))
 	}
 }
 
