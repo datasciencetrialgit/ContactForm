@@ -1,10 +1,12 @@
 package function
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"net/smtp"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -43,6 +45,31 @@ func loadSMTPConfig(_ string) (*SMTPConfig, error) {
 // Add a config for the redirect URL
 var redirectURLConfig = os.Getenv("REDIRECT_URL")
 
+// Add a config for the Google reCAPTCHA secret key
+var recaptchaSecret = os.Getenv("RECAPTCHA_SECRET")
+
+// verifyRecaptcha checks the reCAPTCHA token with Google
+func verifyRecaptcha(token string) bool {
+	if recaptchaSecret == "" || token == "" {
+		return false
+	}
+	resp, err := http.PostForm("https://www.google.com/recaptcha/api/siteverify",
+		url.Values{"secret": {recaptchaSecret}, "response": {token}})
+	if err != nil {
+		log.Printf("reCAPTCHA verify error: %v", err)
+		return false
+	}
+	defer resp.Body.Close()
+	var result struct {
+		Success bool `json:"success"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Printf("reCAPTCHA decode error: %v", err)
+		return false
+	}
+	return result.Success
+}
+
 // ContactForm handles POST requests from a contact form and sends email via configured SMTP providers.
 func ContactForm(w http.ResponseWriter, r *http.Request) {
 	wd, _ := os.Getwd()
@@ -71,6 +98,13 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 	msg := "From: " + os.Getenv("SMTP_USER") + "\n" +
 		"To: " + os.Getenv("SMTP_TO") + "\n" +
 		"Subject: " + subject + "\n\n" + body
+
+	// reCAPTCHA validation
+	recaptchaToken := r.FormValue("g-recaptcha-response")
+	if !verifyRecaptcha(recaptchaToken) {
+		http.Error(w, "reCAPTCHA validation failed", http.StatusBadRequest)
+		return
+	}
 
 	// Load SMTP providers config
 	cfg, err := loadSMTPConfig("")

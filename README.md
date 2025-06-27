@@ -66,14 +66,23 @@ See `.github/workflows/deploy.yml` for an example workflow to deploy on push.
 - Uses a honeypot field to block most bots.
 - For more security, add reCAPTCHA and validate it in the function.
 
-## Google Cloud IAM Permissions
+## Google Cloud Setup Summary
 
-Your service account must have the following roles to deploy and manage Cloud Functions:
-- `roles/cloudfunctions.developer`
-- `roles/cloudfunctions.viewer`
-- `roles/iam.serviceAccountUser` (if deploying as another service account)
+### APIs/Services to Enable
+- **Cloud Functions API** (`cloudfunctions.googleapis.com`)
+- **Cloud Run API** (`run.googleapis.com`)
+- **Cloud Build API** (`cloudbuild.googleapis.com`)
+- **IAM Service Account Credentials API** (`iamcredentials.googleapis.com`)
 
-You can grant these roles in the [Google Cloud Console IAM page](https://console.cloud.google.com/iam-admin/iam).
+Enable these in the [Google Cloud Console API Library](https://console.cloud.google.com/apis/library).
+
+### Required IAM Roles for Service Account
+- `roles/cloudfunctions.developer` (Cloud Functions Developer)
+- `roles/cloudfunctions.viewer` (Cloud Functions Viewer)
+- `roles/iam.serviceAccountUser` (Service Account User, if deploying as another service account)
+- `roles/run.invoker` (Cloud Run Invoker, for HTTP triggers)
+
+Assign these roles to the service account used for deployment in the [IAM page](https://console.cloud.google.com/iam-admin/iam).
 
 ## License
 MIT
