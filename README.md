@@ -66,5 +66,14 @@ See `.github/workflows/deploy.yml` for an example workflow to deploy on push.
 - Uses a honeypot field to block most bots.
 - For more security, add reCAPTCHA and validate it in the function.
 
+## Google Cloud IAM Permissions
+
+Your service account must have the following roles to deploy and manage Cloud Functions:
+- `roles/cloudfunctions.developer`
+- `roles/cloudfunctions.viewer`
+- `roles/iam.serviceAccountUser` (if deploying as another service account)
+
+You can grant these roles in the [Google Cloud Console IAM page](https://console.cloud.google.com/iam-admin/iam).
+
 ## License
 MIT
