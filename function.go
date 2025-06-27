@@ -2,14 +2,11 @@ package function
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/smtp"
 	"os"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 var sendMail = smtp.SendMail
@@ -23,23 +20,24 @@ type SMTPConfig struct {
 	Providers map[string]SMTPProvider `yaml:"smtp_providers"`
 }
 
-// loadSMTPConfig loads SMTP providers from a YAML config file
-func loadSMTPConfig(path string) (*SMTPConfig, error) {
-	log.Printf("Attempting to open SMTP config at: %s", path)
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-	var cfg SMTPConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
+// SMTP provider config is now hardcoded in the code for deployment simplicity
+var smtpConfig = SMTPConfig{
+	Providers: map[string]SMTPProvider{
+		"gmail": {
+			Host: "smtp.gmail.com",
+			Port: "587",
+		},
+		"microsoft": {
+			Host: "smtp.office365.com",
+			Port: "587",
+		},
+		// Add more providers as needed
+	},
+}
+
+// loadSMTPConfig returns the hardcoded SMTPConfig
+func loadSMTPConfig(_ string) (*SMTPConfig, error) {
+	return &smtpConfig, nil
 }
 
 // ContactForm handles POST requests from a contact form and sends email via configured SMTP providers.
@@ -72,7 +70,7 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		"Subject: " + subject + "\n\n" + body
 
 	// Load SMTP providers config
-	cfg, err := loadSMTPConfig("smtp_providers.yaml")
+	cfg, err := loadSMTPConfig("")
 	if err != nil {
 		log.Printf("Failed to load SMTP config: %v", err)
 		http.Error(w, "Server config error", http.StatusInternalServerError)
