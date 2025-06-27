@@ -102,10 +102,7 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 			// Redirect with success message as URL parameter
 			redirectURL := redirectURLConfig
 			if redirectURL == "" {
-				redirectURL = r.Referer()
-			}
-			if redirectURL == "" {
-				redirectURL = "/Contact"
+				redirectURL = "/contact" // Always fallback to /Contact if not set
 			}
 			sep := "?"
 			if strings.Contains(redirectURL, "?") {
@@ -122,10 +119,7 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		// Redirect with failure message as URL parameter
 		redirectURL := redirectURLConfig
 		if redirectURL == "" {
-			redirectURL = r.Referer()
-		}
-		if redirectURL == "" {
-			redirectURL = "/"
+			redirectURL = "/Contact" // Always fallback to /Contact if not set
 		}
 		sep := "?"
 		if strings.Contains(redirectURL, "?") {
