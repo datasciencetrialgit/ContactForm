@@ -81,33 +81,14 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 	if providers == "" {
 		providers = "gmail,microsoft" // default order
 	}
-	var lastErr error
-	for _, provider := range splitAndTrim(providers) {
-		p, ok := cfg.Providers[provider]
-		if !ok {
-			continue
-		}
-		smtpUser := os.Getenv("SMTP_USER")
-		smtpPass := os.Getenv("SMTP_PASS")
-		if smtpUser == "" || smtpPass == "" {
-			log.Printf("SMTP_USER or SMTP_PASS not set")
-			continue
-		}
-		auth := smtp.PlainAuth("", smtpUser, smtpPass, p.Host)
-		err := sendMail(p.Host+":"+p.Port, auth, smtpUser, []string{os.Getenv("SMTP_TO")}, []byte(msg))
-		if err == nil {
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, "Message sent successfully!")
-			return
-		}
-		lastErr = err
-		log.Printf("SendMail error with %s: %v", provider, err)
+
+	if err := trySendMailWithProviders(cfg, providers, msg); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	if lastErr != nil {
-		http.Error(w, "Failed to send email with all providers", http.StatusInternalServerError)
-	} else {
-		http.Error(w, "No valid SMTP provider configured", http.StatusInternalServerError)
-	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "Message sent successfully!")
 }
 
 func splitAndTrim(s string) []string {
@@ -119,4 +100,41 @@ func splitAndTrim(s string) []string {
 		}
 	}
 	return out
+}
+
+
+// trySendMailWithProviders attempts to send the email using the configured SMTP providers.
+func trySendMailWithProviders(cfg *SMTPConfig, providers string, msg string) error {
+	var lastErr error
+	providerList := splitAndTrim(providers)
+	smtpUser := os.Getenv("SMTP_USER")
+	smtpPass := os.Getenv("SMTP_PASS")
+	smtpTo := os.Getenv("SMTP_TO")
+
+	if smtpUser == "" || smtpPass == "" {
+		log.Printf("SMTP_USER or SMTP_PASS not set")
+		return fmt.Errorf("SMTP credentials not set")
+	}
+	if smtpTo == "" {
+		log.Printf("SMTP_TO not set")
+		return fmt.Errorf("SMTP_TO not set")
+	}
+
+	for _, provider := range providerList {
+		p, ok := cfg.Providers[provider]
+		if !ok {
+			continue
+		}
+		auth := smtp.PlainAuth("", smtpUser, smtpPass, p.Host)
+		err := sendMail(p.Host+":"+p.Port, auth, smtpUser, []string{smtpTo}, []byte(msg))
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		log.Printf("SendMail error with %s: %v", provider, err)
+	}
+	if lastErr != nil {
+		return fmt.Errorf("failed to send email with all providers")
+	}
+	return fmt.Errorf("no valid SMTP provider configured")
 }

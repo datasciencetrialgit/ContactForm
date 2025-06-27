@@ -30,10 +30,3 @@ jobs:
             --allow-unauthenticated \
             --set-env-vars "SMTP_USER=${{ secrets.SMTP_USER }},SMTP_PASS=${{ secrets.SMTP_PASS }},SMTP_TO=${{ secrets.SMTP_TO }},SMTP_PROVIDERS=${{ secrets.SMTP_PROVIDERS }}"
 
-      - name: Grant Cloud Functions roles (manual step)
-        run: |
-          echo "Ensure your service account has the following roles:"
-          echo "- roles/cloudfunctions.developer"
-          echo "- roles/cloudfunctions.viewer"
-          echo "- roles/iam.serviceAccountUser (if needed)"
-          echo "You can grant these roles in the Google Cloud Console IAM page: https://console.cloud.google.com/iam-admin/iam"
