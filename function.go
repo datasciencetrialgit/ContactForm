@@ -45,7 +45,9 @@ func loadSMTPConfig(_ string) (*SMTPConfig, error) {
 }
 
 // getSecret fetches the latest version of a secret from Google Cloud Secret Manager.
-func getSecret(ctx context.Context, secretName string) (string, error) {
+var getSecret = realGetSecret
+
+func realGetSecret(ctx context.Context, secretName string) (string, error) {
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to create secretmanager client: %w", err)
