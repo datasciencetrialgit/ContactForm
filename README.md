@@ -7,7 +7,7 @@ This project provides a secure Google Cloud Function written in Go for handling 
 - Accepts POST requests from your contact form
 - Honeypot field for spam protection
 - Config-driven: supports multiple SMTP providers (failover if one fails)
-- Supports custom redirect via the `_redirect` form field
+- Uses Google Cloud Secret Manager for SMTP credentials
 - Ready for deployment to Google Cloud Functions
 - Example GitHub Actions workflow for CI/CD
 - Includes local/unit test scripts
@@ -16,8 +16,8 @@ This project provides a secure Google Cloud Function written in Go for handling 
 
 ### 1. Configure Environment Variables
 Set the following environment variables when deploying or testing:
-- `SMTP_USER`: Your email address (Gmail, Microsoft, etc.)
-- `SMTP_PASS`: Your app password (not your main password)
+- `SMTP_USER_SECRET`: The resource name of your SMTP user secret in Secret Manager (e.g., `projects/PROJECT_ID/secrets/SMTP_USER`)
+- `SMTP_PASS_SECRET`: The resource name of your SMTP password secret in Secret Manager (e.g., `projects/PROJECT_ID/secrets/SMTP_PASS`)
 - `SMTP_TO`: The email address to receive contact form messages
 - `SMTP_PROVIDERS`: Comma-separated list of provider keys to try in order (e.g., `gmail,microsoft`). Defaults to `gmail,microsoft`.
 
@@ -28,7 +28,7 @@ gcloud functions deploy ContactForm \
   --runtime go121 \
   --trigger-http \
   --allow-unauthenticated \
-  --set-env-vars "SMTP_USER=you@gmail.com,SMTP_PASS=your-app-password,SMTP_TO=you@gmail.com,SMTP_PROVIDERS=gmail,microsoft"
+  --set-env-vars "SMTP_USER_SECRET=projects/PROJECT_ID/secrets/SMTP_USER,SMTP_PASS_SECRET=projects/PROJECT_ID/secrets/SMTP_PASS,SMTP_TO=you@gmail.com,SMTP_PROVIDERS=gmail,microsoft"
 ```
 
 ### 3. Update Your Contact Form
@@ -36,10 +36,6 @@ gcloud functions deploy ContactForm \
 - Add a hidden honeypot field:
   ```html
   <input type="text" name="website" style="display:none">
-  ```
-- (Optional) Add a hidden `_redirect` field to control the redirect URL after submission:
-  ```html
-  <input type="hidden" name="_redirect" value="https://yoursite.com/thank-you">
   ```
 
 ### 4. Local Testing
@@ -52,6 +48,7 @@ See `.github/workflows/deploy.yml` for an example workflow to deploy on push.
 
 ## Security
 - Uses a honeypot field to block most bots.
+- SMTP credentials are stored securely in Google Cloud Secret Manager, not in environment variables.
 - For more advanced security, consider adding a math challenge or reCAPTCHA on your frontend and validating it before submitting to this function.
 
 ## Google Cloud Setup Summary
@@ -61,6 +58,7 @@ See `.github/workflows/deploy.yml` for an example workflow to deploy on push.
 - **Cloud Run API** (`run.googleapis.com`)
 - **Cloud Build API** (`cloudbuild.googleapis.com`)
 - **IAM Service Account Credentials API** (`iamcredentials.googleapis.com`)
+- **Secret Manager API** (`secretmanager.googleapis.com`)
 
 Enable these in the [Google Cloud Console API Library](https://console.cloud.google.com/apis/library).
 
@@ -69,6 +67,7 @@ Enable these in the [Google Cloud Console API Library](https://console.cloud.goo
 - `roles/cloudfunctions.viewer` (Cloud Functions Viewer)
 - `roles/iam.serviceAccountUser` (Service Account User, if deploying as another service account)
 - `roles/run.invoker` (Cloud Run Invoker, for HTTP triggers)
+- `roles/secretmanager.secretAccessor` (Secret Manager Secret Accessor)
 
 Assign these roles to the service account used for deployment in the [IAM page](https://console.cloud.google.com/iam-admin/iam).
 

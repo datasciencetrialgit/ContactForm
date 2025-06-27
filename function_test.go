@@ -12,8 +12,8 @@ import (
 )
 
 func TestContactForm_Success(t *testing.T) {
-	os.Setenv("SMTP_USER", "craftedlivefoundation@gmail.com")
-	os.Setenv("SMTP_PASS", "Crafted001!")
+	os.Setenv("SMTP_USER_SECRET", "projects/test/secrets/SMTP_USER")
+	os.Setenv("SMTP_PASS_SECRET", "projects/test/secrets/SMTP_PASS")
 	os.Setenv("SMTP_TO", "craftedlivefoundation@gmail.com")
 	os.Setenv("SMTP_PROVIDERS", "gmail")
 
@@ -35,12 +35,25 @@ func TestContactForm_Success(t *testing.T) {
 	}
 	defer func() { sendMail = sendMailOrig }()
 
+	// Patch getSecret to return dummy values for secrets
+	getSecretOrig := getSecret
+	getSecret = func(ctx context.Context, secretName string) (string, error) {
+		if strings.Contains(secretName, "SMTP_USER") {
+			return "craftedlivefoundation@gmail.com", nil
+		}
+		if strings.Contains(secretName, "SMTP_PASS") {
+			return "Crafted001!", nil
+		}
+		return "", nil
+	}
+	defer func() { getSecret = getSecretOrig }()
+
 	ContactForm(rw, req)
 
 	resp := rw.Result()
-	if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("expected redirect or 200 OK, got %d: %s", resp.StatusCode, string(body))
+		t.Fatalf("expected 200 OK, got %d: %s", resp.StatusCode, string(body))
 	}
 }
 

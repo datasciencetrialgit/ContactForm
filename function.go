@@ -1,12 +1,16 @@
 package function
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"net/smtp"
 	"os"
 	"strings"
+
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	secretmanagerpb "cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 )
 
 var sendMail = smtp.SendMail
@@ -40,6 +44,24 @@ func loadSMTPConfig(_ string) (*SMTPConfig, error) {
 	return &smtpConfig, nil
 }
 
+// getSecret fetches the latest version of a secret from Google Cloud Secret Manager.
+func getSecret(ctx context.Context, secretName string) (string, error) {
+	client, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to create secretmanager client: %w", err)
+	}
+	defer client.Close()
+
+	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
+		Name: fmt.Sprintf("%s/versions/latest", secretName),
+	}
+	result, err := client.AccessSecretVersion(ctx, accessRequest)
+	if err != nil {
+		return "", fmt.Errorf("failed to access secret version: %w", err)
+	}
+	return string(result.Payload.Data), nil
+}
+
 // ContactForm handles POST requests from a contact form and sends email via configured SMTP providers.
 func ContactForm(w http.ResponseWriter, r *http.Request) {
 	wd, _ := os.Getwd()
@@ -65,7 +87,29 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 
 	subject := "Contact Form Submission"
 	body := fmt.Sprintf("Name: %s\nEmail: %s\nMessage:\n%s", name, email, message)
-	msg := "From: " + os.Getenv("SMTP_USER") + "\n" +
+
+	// Fetch SMTP credentials from Secret Manager
+	ctx := r.Context()
+	smtpUserSecret := os.Getenv("SMTP_USER_SECRET")
+	smtpPassSecret := os.Getenv("SMTP_PASS_SECRET")
+	if smtpUserSecret == "" || smtpPassSecret == "" {
+		http.Error(w, "SMTP secret names not set", http.StatusInternalServerError)
+		return
+	}
+	smtpUser, err := getSecret(ctx, smtpUserSecret)
+	if err != nil {
+		log.Printf("Failed to get SMTP_USER secret: %v", err)
+		http.Error(w, "Server config error", http.StatusInternalServerError)
+		return
+	}
+	smtpPass, err := getSecret(ctx, smtpPassSecret)
+	if err != nil {
+		log.Printf("Failed to get SMTP_PASS secret: %v", err)
+		http.Error(w, "Server config error", http.StatusInternalServerError)
+		return
+	}
+
+	msg := "From: " + smtpUser + "\n" +
 		"To: " + os.Getenv("SMTP_TO") + "\n" +
 		"Subject: " + subject + "\n\n" + body
 
@@ -82,7 +126,7 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		providers = "gmail,microsoft" // default order
 	}
 
-	if err := trySendMailWithProviders(cfg, providers, msg); err != nil {
+	if err := trySendMailWithProviders(cfg, providers, msg, smtpUser, smtpPass); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -102,13 +146,10 @@ func splitAndTrim(s string) []string {
 	return out
 }
 
-
 // trySendMailWithProviders attempts to send the email using the configured SMTP providers.
-func trySendMailWithProviders(cfg *SMTPConfig, providers string, msg string) error {
+func trySendMailWithProviders(cfg *SMTPConfig, providers string, msg string, smtpUser string, smtpPass string) error {
 	var lastErr error
 	providerList := splitAndTrim(providers)
-	smtpUser := os.Getenv("SMTP_USER")
-	smtpPass := os.Getenv("SMTP_PASS")
 	smtpTo := os.Getenv("SMTP_TO")
 
 	if smtpUser == "" || smtpPass == "" {
