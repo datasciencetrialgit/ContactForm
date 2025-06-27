@@ -92,8 +92,8 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch SMTP credentials from Secret Manager
 	ctx := r.Context()
-	smtpUserSecret := os.Getenv("SMTP_USER_SECRET")
-	smtpPassSecret := os.Getenv("SMTP_PASS_SECRET")
+	smtpUserSecret, _ := getSecret(ctx, "SMTP_USER_SECRET")
+	smtpPassSecret, _ := getSecret(ctx, "SMTP_PASS_SECRET")
 	if smtpUserSecret == "" || smtpPassSecret == "" {
 		http.Error(w, "SMTP secret names not set", http.StatusInternalServerError)
 		return
