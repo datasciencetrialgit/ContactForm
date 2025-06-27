@@ -26,13 +26,8 @@ type SMTPConfig struct {
 
 // loadSMTPConfig loads SMTP providers from a YAML config file
 func loadSMTPConfig(path string) (*SMTPConfig, error) {
-	exePath, err := os.Executable()
-	if err != nil {
-		return nil, err
-	}
-	dir := filepath.Dir(exePath)
-	fullPath := filepath.Join(dir, path)
-	file, err := os.Open(fullPath)
+	log.Printf("Attempting to open SMTP config at: %s", path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}

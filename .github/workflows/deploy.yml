@@ -25,7 +25,7 @@ jobs:
       - name: Deploy Cloud Function
         run: |
           gcloud functions deploy ContactForm \
-            --runtime go121 \
+            --runtime go122 \
             --trigger-http \
             --allow-unauthenticated \
             --set-env-vars "SMTP_USER=${{ secrets.SMTP_USER }},SMTP_PASS=${{ secrets.SMTP_PASS }},SMTP_TO=${{ secrets.SMTP_TO }},SMTP_PROVIDERS=${{ secrets.SMTP_PROVIDERS }}"
