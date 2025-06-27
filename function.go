@@ -92,8 +92,9 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch SMTP credentials from Secret Manager
 	ctx := r.Context()
-	smtpUserSecret, _ := getSecret(ctx, "SMTP_USER_SECRET")
-	smtpPassSecret, _ := getSecret(ctx, "SMTP_PASS_SECRET")
+	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+	smtpUserSecret, _ := getSecret(ctx, fmt.Sprintf("projects/%s/secrets/SMTP_USER_SECRET", projectID))
+	smtpPassSecret, _ := getSecret(ctx, fmt.Sprintf("projects/%s/secrets/SMTP_PASS_SECRET", projectID))
 	if smtpUserSecret == "" || smtpPassSecret == "" {
 		http.Error(w, "SMTP secret names not set", http.StatusInternalServerError)
 		return
