@@ -57,14 +57,6 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Simple math challenge anti-bot check
-	mathChallenge := r.FormValue("math_challenge")
-	mathExpected := r.FormValue("math_expected")
-	if mathChallenge == "" || mathExpected == "" || mathChallenge != mathExpected {
-		http.Error(w, "Math challenge failed", http.StatusBadRequest)
-		return
-	}
-
 	name := r.FormValue("name")
 	email := r.FormValue("email")
 	message := r.FormValue("message")
