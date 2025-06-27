@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -25,7 +26,13 @@ type SMTPConfig struct {
 
 // loadSMTPConfig loads SMTP providers from a YAML config file
 func loadSMTPConfig(path string) (*SMTPConfig, error) {
-	file, err := os.Open(path)
+	exePath, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	dir := filepath.Dir(exePath)
+	fullPath := filepath.Join(dir, path)
+	file, err := os.Open(fullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +50,8 @@ func loadSMTPConfig(path string) (*SMTPConfig, error) {
 
 // ContactForm handles POST requests from a contact form and sends email via configured SMTP providers.
 func ContactForm(w http.ResponseWriter, r *http.Request) {
+	wd, _ := os.Getwd()
+	log.Printf("Current working directory: %s", wd)
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
