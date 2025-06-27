@@ -2,7 +2,7 @@ package function
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/smtp"
@@ -25,7 +25,12 @@ type SMTPConfig struct {
 
 // loadSMTPConfig loads SMTP providers from a YAML config file
 func loadSMTPConfig(path string) (*SMTPConfig, error) {
-	data, err := ioutil.ReadFile(path)
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +86,14 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			continue
 		}
-		auth := smtp.PlainAuth("", os.Getenv("SMTP_USER"), os.Getenv("SMTP_PASS"), p.Host)
-		err := sendMail(p.Host+":"+p.Port, auth, os.Getenv("SMTP_USER"), []string{os.Getenv("SMTP_TO")}, []byte(msg))
+		smtpUser := os.Getenv("SMTP_USER")
+		smtpPass := os.Getenv("SMTP_PASS")
+		if smtpUser == "" || smtpPass == "" {
+			log.Printf("SMTP_USER or SMTP_PASS not set")
+			continue
+		}
+		auth := smtp.PlainAuth("", smtpUser, smtpPass, p.Host)
+		err := sendMail(p.Host+":"+p.Port, auth, smtpUser, []string{os.Getenv("SMTP_TO")}, []byte(msg))
 		if err == nil {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, "Message sent successfully!")

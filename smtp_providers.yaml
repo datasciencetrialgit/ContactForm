@@ -1,0 +1,8 @@
+smtp_providers:
+  gmail:
+    host: smtp.gmail.com
+    port: "587"
+  microsoft:
+    host: smtp.office365.com
+    port: "587"
+  # Add more providers as needed
