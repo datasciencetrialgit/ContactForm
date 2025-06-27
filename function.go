@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/smtp"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
