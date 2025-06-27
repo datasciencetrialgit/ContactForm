@@ -57,6 +57,13 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Support custom redirect URL from form field
+	redirect := r.FormValue("_redirect")
+	if redirect != "" {
+		http.Redirect(w, r, redirect, http.StatusSeeOther)
+		return
+	}
+
 	name := r.FormValue("name")
 	email := r.FormValue("email")
 	message := r.FormValue("message")

@@ -7,6 +7,7 @@ This project provides a secure Google Cloud Function written in Go for handling 
 - Accepts POST requests from your contact form
 - Honeypot field for spam protection
 - Config-driven: supports multiple SMTP providers (failover if one fails)
+- Supports custom redirect via the `_redirect` form field
 - Ready for deployment to Google Cloud Functions
 - Example GitHub Actions workflow for CI/CD
 - Includes local/unit test scripts
@@ -35,6 +36,10 @@ gcloud functions deploy ContactForm \
 - Add a hidden honeypot field:
   ```html
   <input type="text" name="website" style="display:none">
+  ```
+- (Optional) Add a hidden `_redirect` field to control the redirect URL after submission:
+  ```html
+  <input type="hidden" name="_redirect" value="https://yoursite.com/thank-you">
   ```
 
 ### 4. Local Testing
