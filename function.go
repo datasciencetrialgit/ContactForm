@@ -199,7 +199,7 @@ func trySendMailWithProviders(cfg *SMTPConfig, providers string, msg string, smt
 			return nil
 		}
 		lastErr = err
-		log.Printf("SendMail error with %s: %v", provider, err)
+		log.Printf("SendMail error with %s: %v %c", provider, err, msg)
 	}
 	if lastErr != nil {
 		return fmt.Errorf("failed to send email with all providers")
