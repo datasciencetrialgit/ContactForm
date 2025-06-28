@@ -28,5 +28,5 @@ jobs:
             --runtime go123 \
             --trigger-http \
             --allow-unauthenticated \
-            --set-env-vars "SMTP_USER=${{ secrets.SMTP_USER }},SMTP_PASS=${{ secrets.SMTP_PASS }},SMTP_TO=${{ secrets.SMTP_TO }},SMTP_PROVIDERS=${{ secrets.SMTP_PROVIDERS }}"
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ secrets.GOOGLE_CLOUD_PROJECT }},SMTP_TO=${{ secrets.SMTP_TO }},SMTP_PROVIDERS=${{ secrets.SMTP_PROVIDERS }}"
 
