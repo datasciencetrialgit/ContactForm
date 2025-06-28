@@ -8,7 +8,8 @@ import (
 	"net/smtp"
 	"os"
 	"strings"
-
+	"encoding/hex"
+	"runtime/debug"
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	secretmanagerpb "cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 )
@@ -199,7 +200,7 @@ func trySendMailWithProviders(cfg *SMTPConfig, providers string, msg string, smt
 			return nil
 		}
 		lastErr = err
-		log.Printf("SendMail error with %s: %v %c", provider, err, msg)
+		log.Printf("SendMail error with %s: %v\nStack trace:\n%s\nRaw msg (hex): %s", provider, err, debug.Stack(), hex.EncodeToString([]byte(msg)))
 	}
 	if lastErr != nil {
 		return fmt.Errorf("failed to send email with all providers")
