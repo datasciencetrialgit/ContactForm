@@ -59,6 +59,8 @@ func GetSecretValue(ctx context.Context, client *secretmanager.Client, secretNam
 }
 
 // ContactForm handles POST requests from a contact form and sends email via configured SMTP providers.
+const serverConfigErrorMsg = "Server config error"
+
 func ContactForm(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -97,38 +99,45 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		log.Printf("Failed to create new client: %v", err)
+		http.Error(w, serverConfigErrorMsg, http.StatusInternalServerError)
+		return
+	}
+	defer client.Close()
+
+	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+	if projectID == "" {
+		log.Printf("GOOGLE_CLOUD_PROJECT not set")
 		http.Error(w, "Server config error", http.StatusInternalServerError)
 		return
 	}
-	smtpUserSecret := ("projects/clauth-63a30/secrets/SMTP_USER_SECRET/versions/latest")
-	smtpPassSecret := ("projects/clauth-63a30/secrets/SMTP_PASS_SECRET/versions/latest")
+
+	smtpUserSecret := fmt.Sprintf("projects/%s/secrets/SMTP_USER_SECRET/versions/latest", projectID)
+    smtpPassSecret := fmt.Sprintf("projects/%s/secrets/SMTP_PASS_SECRET/versions/latest", projectID)
 	if smtpUserSecret == "" || smtpPassSecret == "" {
 		log.Printf("SMTP secret names not set")
-		http.Error(w, "Server config error", http.StatusInternalServerError)
+		http.Error(w, serverConfigErrorMsg, http.StatusInternalServerError)
 		return
 	}
 	smtpUser, err := GetSecretValue(ctx, client, smtpUserSecret)
 	if err != nil {
 		log.Printf("Failed to get SMTP_USER secret: %v", err)
-		http.Error(w, "Server config error", http.StatusInternalServerError)
+		http.Error(w, serverConfigErrorMsg, http.StatusInternalServerError)
 		return
 	}
-	smtpPass, err := GetSecretValue(ctx, client, smtpUserSecret)
+	smtpPass, err := GetSecretValue(ctx, client, smtpPassSecret)
 	if err != nil {
 		log.Printf("Failed to get SMTP_PASS secret: %v", err)
-		http.Error(w, "Server config error", http.StatusInternalServerError)
+		http.Error(w, serverConfigErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
 	msg := "From: " + smtpUser + "\n" +
 		"To: " + os.Getenv("SMTP_TO") + "\n" +
 		"Subject: " + subject + "\n\n" + body
-
-	// Load SMTP providers config
 	cfg, err := loadSMTPConfig("")
 	if err != nil {
 		log.Printf("Failed to load SMTP config: %v", err)
-		http.Error(w, "Server config error", http.StatusInternalServerError)
+		http.Error(w, serverConfigErrorMsg, http.StatusInternalServerError)
 		return
 	}
 
