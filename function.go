@@ -111,8 +111,8 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	smtpUserSecret := fmt.Sprintf("projects/%s/secrets/SMTP_USER_SECRET", projectID)
-	smtpPassSecret := fmt.Sprintf("projects/%s/secrets/SMTP_PASS_SECRET", projectID)
+	smtpUserSecret := fmt.Sprintf("projects/%s/secrets/SMTP_USER_SECRET/versions/1", projectID)
+    smtpPassSecret := fmt.Sprintf("projects/%s/secrets/SMTP_PASS_SECRET/versions/1", projectID)
 	if smtpUserSecret == "" || smtpPassSecret == "" {
 		log.Printf("SMTP secret names not set")
 		http.Error(w, serverConfigErrorMsg, http.StatusInternalServerError)
