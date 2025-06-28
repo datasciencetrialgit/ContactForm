@@ -44,46 +44,48 @@ func loadSMTPConfig(_ string) (*SMTPConfig, error) {
 	return &smtpConfig, nil
 }
 
-// getSecret fetches the latest version of a secret from Google Cloud Secret Manager.
-var getSecret = realGetSecret
+// GetSecretValue fetches the secret value from Google Secret Manager.
+func GetSecretValue(ctx context.Context, client *secretmanager.Client, secretName string) (string, error) {
+	req := &secretmanagerpb.AccessSecretVersionRequest{
+		Name: secretName,
+	}
 
-func realGetSecret(ctx context.Context, secretName string) (string, error) {
-	client, err := secretmanager.NewClient(ctx)
+	result, err := client.AccessSecretVersion(ctx, req)
 	if err != nil {
-		return "", fmt.Errorf("failed to create secretmanager client: %w", err)
+		return "", fmt.Errorf("failed to access secret version: %v", err)
 	}
-	defer client.Close()
 
-	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: fmt.Sprintf("%s/versions/latest", secretName),
-	}
-	result, err := client.AccessSecretVersion(ctx, accessRequest)
-	if err != nil {
-		return "", fmt.Errorf("failed to access secret version: %w", err)
-	}
 	return string(result.Payload.Data), nil
 }
 
 // ContactForm handles POST requests from a contact form and sends email via configured SMTP providers.
 func ContactForm(w http.ResponseWriter, r *http.Request) {
-	wd, _ := os.Getwd()
-	log.Printf("Current working directory: %s", wd)
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
+	// Simple honeypot anti-bot check
 	if r.FormValue("website") != "" {
 		http.Error(w, "Spam detected", http.StatusBadRequest)
 		return
 	}
 
-	name := r.FormValue("name")
-	email := r.FormValue("email")
-	message := r.FormValue("message")
+	name := strings.TrimSpace(r.FormValue("name"))
+	email := strings.TrimSpace(r.FormValue("email"))
+	message := strings.TrimSpace(r.FormValue("message"))
 
+	// Basic input validation
 	if name == "" || email == "" || message == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+	if len(message) > 5000 {
+		http.Error(w, "Message too long", http.StatusBadRequest)
+		return
+	}
+	if !strings.Contains(email, "@") {
+		http.Error(w, "Invalid email address", http.StatusBadRequest)
 		return
 	}
 
@@ -92,20 +94,26 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch SMTP credentials from Secret Manager
 	ctx := r.Context()
-	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	smtpUserSecret, _ := getSecret(ctx, fmt.Sprintf("projects/%s/secrets/SMTP_USER_SECRET", projectID))
-	smtpPassSecret, _ := getSecret(ctx, fmt.Sprintf("projects/%s/secrets/SMTP_PASS_SECRET", projectID))
-	if smtpUserSecret == "" || smtpPassSecret == "" {
-		http.Error(w, "SMTP secret names not set", http.StatusInternalServerError)
+	client, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		log.Printf("Failed to create new client: %v", err)
+		http.Error(w, "Server config error", http.StatusInternalServerError)
 		return
 	}
-	smtpUser, err := getSecret(ctx, smtpUserSecret)
+	smtpUserSecret := ("projects/clauth-63a30/secrets/SMTP_USER_SECRET/versions/latest")
+	smtpPassSecret := ("projects/clauth-63a30/secrets/SMTP_PASS_SECRET/versions/latest")
+	if smtpUserSecret == "" || smtpPassSecret == "" {
+		log.Printf("SMTP secret names not set")
+		http.Error(w, "Server config error", http.StatusInternalServerError)
+		return
+	}
+	smtpUser, err := GetSecretValue(ctx, client, smtpUserSecret)
 	if err != nil {
 		log.Printf("Failed to get SMTP_USER secret: %v", err)
 		http.Error(w, "Server config error", http.StatusInternalServerError)
 		return
 	}
-	smtpPass, err := getSecret(ctx, smtpPassSecret)
+	smtpPass, err := GetSecretValue(ctx, client, smtpUserSecret)
 	if err != nil {
 		log.Printf("Failed to get SMTP_PASS secret: %v", err)
 		http.Error(w, "Server config error", http.StatusInternalServerError)
@@ -124,13 +132,16 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	providers := os.Getenv("SMTP_PROVIDERS") // comma-separated, e.g. "gmail,microsoft"
+	providers := os.Getenv("SMTP_PROVIDERS")
 	if providers == "" {
-		providers = "gmail,microsoft" // default order
+		providers = "gmail,microsoft"
 	}
 
+	// TODO: Add rate limiting and/or Origin/Referer checks here if needed
+
 	if err := trySendMailWithProviders(cfg, providers, msg, smtpUser, smtpPass); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("Failed to send mail: %v", err)
+		http.Error(w, "Failed to send message. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 
