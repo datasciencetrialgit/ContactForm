@@ -15,6 +15,10 @@ import (
 
 var sendMail = smtp.SendMail
 
+func sanitizeInput(input string) string {
+    // Replace potentially malicious characters with safe alternatives
+    return strings.ReplaceAll(input, "\n", " ")
+}
 type SMTPProvider struct {
 	Host string `yaml:"host"`
 	Port string `yaml:"port"`
@@ -73,9 +77,9 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := strings.TrimSpace(r.FormValue("name"))
-	email := strings.TrimSpace(r.FormValue("email"))
-	message := strings.TrimSpace(r.FormValue("message"))
+	name := sanitizeInput(strings.TrimSpace(r.FormValue("name")))
+	email := sanitizeInput(strings.TrimSpace(r.FormValue("email")))
+	message := sanitizeInput(strings.TrimSpace(r.FormValue("message")))
 
 	// Basic input validation
 	if name == "" || email == "" || message == "" {
