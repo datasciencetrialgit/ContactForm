@@ -131,9 +131,9 @@ func ContactForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := "From: " + smtpUser + "\n" +
-		"To: " + os.Getenv("SMTP_TO") + "\n" +
-		"Subject: " + subject + "\n\n" + body
+	msg := "From: " + smtpUser + "\r\n" +
+		"To: " + os.Getenv("SMTP_TO") + "\r\n" +
+		"Subject: " + subject + "\r\n\r\n" + body
 	cfg, err := loadSMTPConfig("")
 	if err != nil {
 		log.Printf("Failed to load SMTP config: %v", err)
